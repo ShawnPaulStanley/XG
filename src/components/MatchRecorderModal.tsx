@@ -11,6 +11,7 @@ interface MatchRecorderModalProps {
     teamAScore: number,
     teamBScore: number,
     goals: MatchGoalInput[],
+    appearanceIds: string[],
     playedAt: string,
     notes: string,
   ) => Promise<void>;
@@ -19,7 +20,6 @@ interface MatchRecorderModalProps {
 interface GoalRow {
   scorerId: string;
   assistId: string;
-  minute: string;
 }
 
 export const MatchRecorderModal: React.FC<MatchRecorderModalProps> = ({
@@ -33,6 +33,7 @@ export const MatchRecorderModal: React.FC<MatchRecorderModalProps> = ({
   const [playedAt, setPlayedAt] = useState(new Date().toISOString().slice(0, 10));
   const [notes, setNotes] = useState('');
   const [goals, setGoals] = useState<GoalRow[]>([]);
+  const [appearanceIds, setAppearanceIds] = useState<string[]>([]);
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState('');
 
@@ -40,7 +41,7 @@ export const MatchRecorderModal: React.FC<MatchRecorderModalProps> = ({
 
   if (!isOpen) return null;
 
-  const addGoal = () => setGoals((current) => [...current, { scorerId: '', assistId: '', minute: '' }]);
+  const addGoal = () => setGoals((current) => [...current, { scorerId: '', assistId: '' }]);
   const updateGoal = (index: number, field: keyof GoalRow, value: string) => {
     setGoals((current) => current.map((goal, goalIndex) => (
       goalIndex === index ? { ...goal, [field]: value } : goal
@@ -53,7 +54,6 @@ export const MatchRecorderModal: React.FC<MatchRecorderModalProps> = ({
     const validGoals = goals.filter((goal) => goal.scorerId).map((goal) => ({
       scorerId: goal.scorerId,
       assistId: goal.assistId || null,
-      minute: goal.minute ? Number(goal.minute) : null,
     }));
 
     if (validGoals.length !== Number(teamAScore) + Number(teamBScore)) {
@@ -63,8 +63,9 @@ export const MatchRecorderModal: React.FC<MatchRecorderModalProps> = ({
 
     setIsSaving(true);
     try {
-      await onSave(Number(teamAScore), Number(teamBScore), validGoals, playedAt, notes);
+      await onSave(Number(teamAScore), Number(teamBScore), validGoals, appearanceIds, playedAt, notes);
       setGoals([]);
+      setAppearanceIds([]);
       setNotes('');
       onClose();
     } catch (saveError) {
@@ -117,8 +118,28 @@ export const MatchRecorderModal: React.FC<MatchRecorderModalProps> = ({
                 <Plus className="w-4 h-4" /> Add goal
               </button>
             </div>
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 border-2 border-black bg-zinc-100 p-3">
+              {sortedPlayers.map((player) => (
+                <label key={player.id} className="flex items-center gap-2 text-xs font-bold cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={appearanceIds.includes(player.id)}
+                    onChange={(event) => setAppearanceIds((current) =>
+                      event.target.checked
+                        ? [...current, player.id]
+                        : current.filter((id) => id !== player.id)
+                    )}
+                    className="h-4 w-4 accent-[#CCFF00]"
+                  />
+                  <span className="truncate">{player.name}</span>
+                </label>
+              ))}
+            </div>
+            <p className="text-[10px] font-bold uppercase text-zinc-600">
+              Select every player who appeared in this match.
+            </p>
             {goals.map((goal, index) => (
-              <div key={index} className="grid grid-cols-[1fr_1fr_70px_auto] gap-2 items-end">
+              <div key={index} className="grid grid-cols-[1fr_1fr_auto] gap-2 items-end">
                 <label className="text-[10px] font-black uppercase">
                   Scorer
                   <select required value={goal.scorerId} onChange={(event) => updateGoal(index, 'scorerId', event.target.value)} className="w-full border-2 border-black p-2 text-xs font-bold">
@@ -132,10 +153,6 @@ export const MatchRecorderModal: React.FC<MatchRecorderModalProps> = ({
                     <option value="">None</option>
                     {sortedPlayers.filter((player) => player.id !== goal.scorerId).map((player) => <option key={player.id} value={player.id}>{player.name}</option>)}
                   </select>
-                </label>
-                <label className="text-[10px] font-black uppercase">
-                  Min
-                  <input type="number" min="0" value={goal.minute} onChange={(event) => updateGoal(index, 'minute', event.target.value)} className="w-full border-2 border-black p-2 text-xs font-bold" />
                 </label>
                 <button type="button" onClick={() => setGoals((current) => current.filter((_, goalIndex) => goalIndex !== index))} className="border-2 border-black bg-[#FF5F56] p-2 cursor-pointer">
                   <Trash2 className="w-4 h-4" />

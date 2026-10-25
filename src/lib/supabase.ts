@@ -144,19 +144,20 @@ export async function deleteRemotePlayer(id: string, userId: string): Promise<vo
 }
 
 export async function loadMatchStats(userId: string): Promise<MatchStats> {
-    if (!supabase) return { matches: 0, goals: 0, assists: 0, topScorer: null };
+    if (!supabase) return { matches: 0, goals: 0, assists: 0, appearances: 0, topScorer: null };
 
-    const [{ count: matches, error: matchesError }, { data: goals, error: goalsError }] = await Promise.all([
+    const [{ count: matches, error: matchesError }, { data: goals, error: goalsError }, { count: appearances, error: appearancesError }] = await Promise.all([
       supabase.from('matches').select('id', { count: 'exact', head: true }).eq('user_id', userId),
       supabase
         .from('goals')
         .select('scorer_id, assist_id, players!goals_scorer_id_fkey(name)')
         .eq('user_id', userId),
+      supabase.from('match_appearances').select('player_id', { count: 'exact', head: true }).eq('user_id', userId),
     ]);
 
-    if (matchesError || goalsError) {
-      console.error('Failed to load match stats from Supabase', matchesError || goalsError);
-      return { matches: 0, goals: 0, assists: 0, topScorer: null };
+    if (matchesError || goalsError || appearancesError) {
+      console.error('Failed to load match stats from Supabase', matchesError || goalsError || appearancesError);
+      return { matches: 0, goals: 0, assists: 0, appearances: 0, topScorer: null };
     }
 
     const scorerCounts = new Map<string, { name: string; goals: number }>();
@@ -169,13 +170,12 @@ export async function loadMatchStats(userId: string): Promise<MatchStats> {
     });
 
     const topScorer = [...scorerCounts.values()].sort((a, b) => b.goals - a.goals)[0] ?? null;
-    return { matches: matches ?? 0, goals: goals?.length ?? 0, assists, topScorer };
+    return { matches: matches ?? 0, goals: goals?.length ?? 0, assists, appearances: appearances ?? 0, topScorer };
 }
 
 export interface MatchGoalInput {
   scorerId: string;
   assistId: string | null;
-  minute: number | null;
 }
 
 export async function recordMatch(
@@ -183,6 +183,7 @@ export async function recordMatch(
     teamAScore: number,
     teamBScore: number,
     goals: MatchGoalInput[],
+    appearanceIds: string[],
     playedAt: string,
     notes: string,
   ): Promise<void> {
@@ -209,8 +210,14 @@ export async function recordMatch(
           match_id: match.id,
           scorer_id: goal.scorerId,
           assist_id: goal.assistId,
-          minute: goal.minute,
-        })),
+          })),
+      );
+      if (error) throw error;
+  }
+
+  if (appearanceIds.length > 0) {
+      const { error } = await supabase.from('match_appearances').insert(
+        appearanceIds.map((playerId) => ({ user_id: userId, match_id: match.id, player_id: playerId })),
       );
       if (error) throw error;
   }

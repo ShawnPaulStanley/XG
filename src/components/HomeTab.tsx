@@ -81,7 +81,7 @@ export const HomeTab: React.FC<HomeTabProps> = ({
             </button>
           </div>
 
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 border-t-4 border-black pt-5 text-left">
+          <div className="grid grid-cols-2 sm:grid-cols-5 gap-2 border-t-4 border-black pt-5 text-left">
             <div className="border-2 border-black bg-zinc-100 p-3">
               <p className="text-[10px] font-black uppercase">Matches</p>
               <p className="text-2xl font-black">{stats.matches}</p>
@@ -93,6 +93,10 @@ export const HomeTab: React.FC<HomeTabProps> = ({
             <div className="border-2 border-black bg-zinc-100 p-3">
               <p className="text-[10px] font-black uppercase">Assists</p>
               <p className="text-2xl font-black">{stats.assists}</p>
+            </div>
+            <div className="border-2 border-black bg-zinc-100 p-3">
+              <p className="text-[10px] font-black uppercase">Appearances</p>
+              <p className="text-2xl font-black">{stats.appearances}</p>
             </div>
             <div className="border-2 border-black bg-zinc-100 p-3">
               <p className="text-[10px] font-black uppercase">Top scorer</p>

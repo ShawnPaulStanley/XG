@@ -98,6 +98,13 @@ create table if not exists public.player_stats (
   updated_at timestamptz not null default now()
 );
 
+create table if not exists public.match_appearances (
+  match_id uuid not null references public.matches(id) on delete cascade,
+  player_id text not null references public.players(id) on delete cascade,
+  user_id uuid not null references auth.users(id) on delete cascade default auth.uid(),
+  primary key (match_id, player_id)
+);
+
 alter table public.players add column if not exists user_id uuid references auth.users(id) on delete cascade default auth.uid();
 alter table public.matches add column if not exists user_id uuid references auth.users(id) on delete cascade default auth.uid();
 alter table public.matches add column if not exists team_a_score integer not null default 0;
@@ -109,6 +116,7 @@ alter table public.matches enable row level security;
 alter table public.match_players enable row level security;
 alter table public.goals enable row level security;
 alter table public.player_stats enable row level security;
+alter table public.match_appearances enable row level security;
 
 alter table public.match_players add column if not exists user_id uuid references auth.users(id) on delete cascade default auth.uid();
 alter table public.player_stats add column if not exists user_id uuid references auth.users(id) on delete cascade default auth.uid();
@@ -124,6 +132,7 @@ drop policy if exists "Users manage their matches" on public.matches;
 drop policy if exists "Users manage their match players" on public.match_players;
 drop policy if exists "Users manage their goals" on public.goals;
 drop policy if exists "Users manage their player stats" on public.player_stats;
+drop policy if exists "Users manage their match appearances" on public.match_appearances;
 
 create policy "Users read their profile" on public.profiles for select
   using (auth.uid() = id);
@@ -136,4 +145,6 @@ create policy "Users manage their match players" on public.match_players for all
 create policy "Users manage their goals" on public.goals for all
   using (auth.uid() = user_id) with check (auth.uid() = user_id);
 create policy "Users manage their player stats" on public.player_stats for all
+  using (auth.uid() = user_id) with check (auth.uid() = user_id);
+create policy "Users manage their match appearances" on public.match_appearances for all
   using (auth.uid() = user_id) with check (auth.uid() = user_id);

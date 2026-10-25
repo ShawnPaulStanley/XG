@@ -87,6 +87,7 @@ export interface MatchStats {
   matches: number;
   goals: number;
   assists: number;
+  appearances: number;
   topScorer: { name: string; goals: number } | null;
 }
 

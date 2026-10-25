@@ -107,7 +107,7 @@ export default function App() {
   const [user, setUser] = useState<User | null>(null);
   const [isAuthLoading, setIsAuthLoading] = useState(true);
   const [isRemoteReady, setIsRemoteReady] = useState(false);
-  const [matchStats, setMatchStats] = useState<MatchStats>({ matches: 0, goals: 0, assists: 0, topScorer: null });
+  const [matchStats, setMatchStats] = useState<MatchStats>({ matches: 0, goals: 0, assists: 0, appearances: 0, topScorer: null });
 
   useEffect(() => {
     if (!supabase) {
@@ -145,7 +145,7 @@ export default function App() {
         void loadMatchStats(session.user.id).then(setMatchStats);
       } else {
         setIsRemoteReady(false);
-        setMatchStats({ matches: 0, goals: 0, assists: 0, topScorer: null });
+        setMatchStats({ matches: 0, goals: 0, assists: 0, appearances: 0, topScorer: null });
       }
     });
 
@@ -257,11 +257,12 @@ export default function App() {
     teamAScore: number,
     teamBScore: number,
     goals: MatchGoalInput[],
+    appearanceIds: string[],
     playedAt: string,
     notes: string,
   ) => {
     if (!user) throw new Error('Log in before recording a match.');
-    await recordMatch(user.id, teamAScore, teamBScore, goals, playedAt, notes);
+    await recordMatch(user.id, teamAScore, teamBScore, goals, appearanceIds, playedAt, notes);
     setMatchStats(await loadMatchStats(user.id));
   };
 
