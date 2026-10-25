@@ -75,7 +75,7 @@ export const MatchRecorderModal: React.FC<MatchRecorderModalProps> = ({
       setNotes('');
       onClose();
     } catch (saveError) {
-      setError(saveError instanceof Error ? saveError.message : 'Unable to save this match.');
+      setError(saveError instanceof Error ? saveError.message : 'Unable to save this match. Check the Supabase schema and policies.');
     } finally {
       setIsSaving(false);
     }

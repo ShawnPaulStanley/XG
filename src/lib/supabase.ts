@@ -178,6 +178,14 @@ export interface MatchGoalInput {
   assistId: string | null;
 }
 
+function describeSupabaseError(error: { message: string; details?: string; hint?: string }): Error {
+  const detail = [error.message, error.details, error.hint].filter(Boolean).join(' ');
+  if (detail.toLowerCase().includes('match_appearances')) {
+    return new Error('The match_appearances table is missing or has no access policy. Run the complete supabase/schema.sql file in Supabase SQL Editor.');
+  }
+  return new Error(detail || 'Supabase rejected the match.');
+}
+
 export async function recordMatch(
     userId: string,
     teamAScore: number,
@@ -201,7 +209,9 @@ export async function recordMatch(
       .select('id')
       .single();
 
-    if (matchError || !match) throw matchError ?? new Error('Supabase did not return the recorded match.');
+    if (matchError || !match) {
+      throw matchError ? describeSupabaseError(matchError) : new Error('Supabase did not return the recorded match.');
+    }
 
     if (goals.length > 0) {
       const { error } = await supabase.from('goals').insert(
@@ -212,13 +222,19 @@ export async function recordMatch(
           assist_id: goal.assistId,
           })),
       );
-      if (error) throw error;
+      if (error) {
+        await supabase.from('matches').delete().eq('id', match.id).eq('user_id', userId);
+        throw describeSupabaseError(error);
+      }
   }
 
   if (appearanceIds.length > 0) {
       const { error } = await supabase.from('match_appearances').insert(
         appearanceIds.map((playerId) => ({ user_id: userId, match_id: match.id, player_id: playerId })),
       );
-      if (error) throw error;
+      if (error) {
+        await supabase.from('matches').delete().eq('id', match.id).eq('user_id', userId);
+        throw describeSupabaseError(error);
+      }
   }
 }
