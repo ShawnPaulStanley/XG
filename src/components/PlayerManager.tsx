@@ -233,14 +233,14 @@ export const PlayerManager: React.FC<PlayerManagerProps> = ({
             return (
               <div
                 key={player.id}
-                className={`group relative border-3 border-black p-4 flex items-center justify-between gap-3 font-['Space_Grotesk',sans-serif] transition-all ${
+                className={`group relative border-3 border-black p-3 flex flex-col gap-3 font-['Space_Grotesk',sans-serif] transition-all ${
                   isAttending
                     ? 'bg-white text-black neo-shadow hover:translate-x-[-2px] hover:translate-y-[-2px]'
                     : 'bg-zinc-200 text-zinc-600 opacity-70 border-zinc-500'
                 }`}
               >
                 {/* Left Shirt Icon & Info */}
-                <div className="flex items-center gap-3 min-w-0 flex-1">
+                <div className="flex items-center gap-3 min-w-0">
                   <div className="relative w-10 h-10 bg-[#00F0FF] border-2 border-black flex items-center justify-center text-black font-black text-xs shrink-0 neo-shadow-sm">
                     {player.kitNumber ? (
                       <span>#{player.kitNumber}</span>
@@ -250,7 +250,10 @@ export const PlayerManager: React.FC<PlayerManagerProps> = ({
                   </div>
 
                   <div className="min-w-0 flex-1 space-y-1">
-                    <h3 className="text-sm font-black text-black break-words leading-tight uppercase">
+                    <h3
+                      className="text-sm font-black text-black truncate leading-tight uppercase"
+                      title={player.name}
+                    >
                       {player.name}
                     </h3>
 
@@ -270,7 +273,7 @@ export const PlayerManager: React.FC<PlayerManagerProps> = ({
                 </div>
 
                 {/* Right Actions: Attendance Switch & Edit / Delete */}
-                <div className="flex items-center gap-2">
+                <div className="flex items-center justify-end gap-2">
                   <button
                     onClick={() => onToggleAttendance(player.id)}
                     className={`flex items-center gap-1 px-2.5 py-1 text-[11px] font-black uppercase border-2 border-black transition-all cursor-pointer ${
