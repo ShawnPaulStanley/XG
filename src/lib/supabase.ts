@@ -128,10 +128,28 @@ export async function loadRemotePlayers(userId: string): Promise<Player[]> {
 export async function upsertRemotePlayers(players: Player[], userId: string): Promise<void> {
   if (!supabase || players.length === 0) return;
 
-  const { error } = await supabase.from('players').upsert(players.map((player) => toRow(player, userId)));
-  if (error) {
-    console.error('Failed to save players to Supabase', error);
-    throw new Error(`Unable to save the current player roster before recording the match: ${error.message}`);
+  for (const player of players) {
+    const row = toRow(player, userId);
+    const { data: existing, error: lookupError } = await supabase
+      .from('players')
+      .select('id')
+      .eq('id', player.id)
+      .eq('user_id', userId)
+      .maybeSingle();
+
+    if (lookupError) {
+      console.error('Failed to check player ownership in Supabase', lookupError);
+      throw new Error(`Unable to verify player ownership before recording the match: ${lookupError.message}`);
+    }
+
+    const result = existing
+      ? await supabase.from('players').update(row).eq('id', player.id).eq('user_id', userId)
+      : await supabase.from('players').insert(row);
+
+    if (result.error) {
+      console.error('Failed to save players to Supabase', result.error);
+      throw new Error(`Unable to save the current player roster before recording the match: ${result.error.message}`);
+    }
   }
 }
 

@@ -45,12 +45,19 @@ import { MatchRecorderModal } from './components/MatchRecorderModal';
 import { AuthScreen } from './components/AuthScreen';
 import { StatsTab } from './components/StatsTab';
 
-function createDefaultPlayers(): Player[] {
+function createDefaultPlayers(userId: string): Player[] {
   const createdAt = Date.now();
   return SAMPLE_ROSTERS[0].players.map((player, index) => ({
     ...player,
-    id: `init_${index}_${createdAt}`,
+    id: `${userId}_init_${index}_${createdAt}`,
     createdAt: createdAt + index,
+  }));
+}
+
+function scopeStoredPlayers(players: Player[], userId: string): Player[] {
+  return players.map((player, index) => ({
+    ...player,
+    id: player.id.startsWith(`${userId}_`) ? player.id : `${userId}_legacy_${index}_${player.id}`,
   }));
 }
 
@@ -95,8 +102,8 @@ export default function App() {
         setSelectedFormation(storedFormationId ? getFormationById(storedFormationId) : (FORMATIONS.find((f) => f.id === '7v7-2-3-1') || FORMATIONS[0]));
         setDivisionResult(storedResult);
         void loadRemotePlayers(data.session.user.id).then((remotePlayers) => {
-          const storedPlayers = loadStoredPlayers(userId);
-          if (!cancelled) setPlayers(remotePlayers.length > 0 ? remotePlayers : storedPlayers.length > 0 ? storedPlayers : createDefaultPlayers());
+          const storedPlayers = scopeStoredPlayers(loadStoredPlayers(userId), userId);
+          if (!cancelled) setPlayers(remotePlayers.length > 0 ? remotePlayers : storedPlayers.length > 0 ? storedPlayers : createDefaultPlayers(userId));
           if (!cancelled) setIsRemoteReady(true);
         });
         void loadMatchStats(data.session.user.id).then((stats) => {
@@ -117,8 +124,8 @@ export default function App() {
         setDivisionResult(loadStoredDivisionResult(userId));
         setIsRemoteReady(false);
         void loadRemotePlayers(session.user.id).then((remotePlayers) => {
-          const storedPlayers = loadStoredPlayers(userId);
-          if (!cancelled) setPlayers(remotePlayers.length > 0 ? remotePlayers : storedPlayers.length > 0 ? storedPlayers : createDefaultPlayers());
+          const storedPlayers = scopeStoredPlayers(loadStoredPlayers(userId), userId);
+          if (!cancelled) setPlayers(remotePlayers.length > 0 ? remotePlayers : storedPlayers.length > 0 ? storedPlayers : createDefaultPlayers(userId));
           if (!cancelled) setIsRemoteReady(true);
         });
         void loadMatchStats(session.user.id).then(setMatchStats);
@@ -214,7 +221,7 @@ export default function App() {
     } else {
       const newPlayer: Player = {
         ...playerData,
-        id: `p_${Date.now()}_${Math.random().toString(36).substr(2, 5)}`,
+        id: `${user?.id ?? 'local'}_p_${Date.now()}_${Math.random().toString(36).substr(2, 5)}`,
         createdAt: Date.now(),
       };
       setPlayers((prev) => [newPlayer, ...prev]);
@@ -225,7 +232,7 @@ export default function App() {
   const handleBulkImport = (newPlayers: Omit<Player, 'id' | 'createdAt'>[]) => {
     const formatted: Player[] = newPlayers.map((p, idx) => ({
       ...p,
-      id: `bulk_${Date.now()}_${idx}`,
+      id: `${user?.id ?? 'local'}_bulk_${Date.now()}_${idx}`,
       createdAt: Date.now() + idx,
     }));
     setPlayers((prev) => [...formatted, ...prev]);
@@ -279,7 +286,7 @@ export default function App() {
 
     const loaded: Player[] = sample.players.map((p, idx) => ({
       ...p,
-      id: `sample_${sampleIndex}_${idx}_${Date.now()}`,
+      id: `${user?.id ?? 'local'}_sample_${sampleIndex}_${idx}_${Date.now()}`,
       createdAt: Date.now() + idx,
     }));
 
