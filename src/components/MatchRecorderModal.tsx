@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { X, Plus, Trash2 } from 'lucide-react';
 import { Player } from '../types';
 import { MatchGoalInput } from '../lib/supabase';
@@ -6,6 +6,7 @@ import { MatchGoalInput } from '../lib/supabase';
 interface MatchRecorderModalProps {
   isOpen: boolean;
   players: Player[];
+  appearanceIds: string[];
   onClose: () => void;
   onSave: (
     teamAScore: number,
@@ -25,6 +26,7 @@ interface GoalRow {
 export const MatchRecorderModal: React.FC<MatchRecorderModalProps> = ({
   isOpen,
   players,
+  appearanceIds: initialAppearanceIds,
   onClose,
   onSave,
 }) => {
@@ -33,11 +35,15 @@ export const MatchRecorderModal: React.FC<MatchRecorderModalProps> = ({
   const [playedAt, setPlayedAt] = useState(new Date().toISOString().slice(0, 10));
   const [notes, setNotes] = useState('');
   const [goals, setGoals] = useState<GoalRow[]>([]);
-  const [appearanceIds, setAppearanceIds] = useState<string[]>([]);
+  const [appearanceIds, setAppearanceIds] = useState<string[]>(initialAppearanceIds);
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState('');
 
   const sortedPlayers = useMemo(() => [...players].sort((a, b) => a.name.localeCompare(b.name)), [players]);
+
+  useEffect(() => {
+    if (isOpen) setAppearanceIds(initialAppearanceIds);
+  }, [isOpen, initialAppearanceIds]);
 
   if (!isOpen) return null;
 
@@ -118,25 +124,8 @@ export const MatchRecorderModal: React.FC<MatchRecorderModalProps> = ({
                 <Plus className="w-4 h-4" /> Add goal
               </button>
             </div>
-            <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 border-2 border-black bg-zinc-100 p-3">
-              {sortedPlayers.map((player) => (
-                <label key={player.id} className="flex items-center gap-2 text-xs font-bold cursor-pointer">
-                  <input
-                    type="checkbox"
-                    checked={appearanceIds.includes(player.id)}
-                    onChange={(event) => setAppearanceIds((current) =>
-                      event.target.checked
-                        ? [...current, player.id]
-                        : current.filter((id) => id !== player.id)
-                    )}
-                    className="h-4 w-4 accent-[#CCFF00]"
-                  />
-                  <span className="truncate">{player.name}</span>
-                </label>
-              ))}
-            </div>
-            <p className="text-[10px] font-bold uppercase text-zinc-600">
-              Select every player who appeared in this match.
+            <p className="border-2 border-black bg-zinc-100 p-3 text-[10px] font-bold uppercase">
+              {appearanceIds.length} players from the pitch lineup will be recorded as appearances.
             </p>
             {goals.map((goal, index) => (
               <div key={index} className="grid grid-cols-[1fr_1fr_auto] gap-2 items-end">

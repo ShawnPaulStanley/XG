@@ -1,6 +1,6 @@
 import React from 'react';
 import { ActiveTab, MatchStats, Player } from '../types';
-import { Users, ArrowRight, Shirt, ClipboardPlus } from 'lucide-react';
+import { Users, ArrowRight, Shirt } from 'lucide-react';
 
 interface HomeTabProps {
   players: Player[];
@@ -8,8 +8,6 @@ interface HomeTabProps {
   onGenerate: () => void;
   hasResult: boolean;
   stats: MatchStats;
-  onRecordMatch: () => void;
-  canRecordMatch: boolean;
 }
 
 export const HomeTab: React.FC<HomeTabProps> = ({
@@ -18,8 +16,6 @@ export const HomeTab: React.FC<HomeTabProps> = ({
   onGenerate,
   hasResult,
   stats,
-  onRecordMatch,
-  canRecordMatch,
 }) => {
   const attendingCount = players.filter((p) => p.isAttending !== false).length;
 
@@ -53,15 +49,6 @@ export const HomeTab: React.FC<HomeTabProps> = ({
             >
               <span>MATCH UP</span>
               <ArrowRight className="w-5 h-5 stroke-[3]" />
-            </button>
-
-            <button
-              onClick={onRecordMatch}
-              disabled={!canRecordMatch}
-              className="w-full flex items-center justify-center gap-2.5 px-6 py-3.5 bg-[#FFB000] hover:bg-[#CCFF00] text-black font-black text-sm border-3 border-black neo-shadow-sm transition-all cursor-pointer uppercase tracking-wider disabled:cursor-not-allowed disabled:opacity-50"
-            >
-              <ClipboardPlus className="w-4 h-4 stroke-[2.5]" />
-              <span>RECORD MATCH</span>
             </button>
 
             <button

@@ -21,6 +21,7 @@ import {
   RefreshCw,
   Share2,
   Trophy,
+  ClipboardPlus,
 } from 'lucide-react';
 
 interface PitchViewProps {
@@ -29,6 +30,7 @@ interface PitchViewProps {
   onShuffle: () => void;
   onUpdateResult: (newResult: DivisionResult) => void;
   onOpenShareModal: () => void;
+  onOpenRecordMatch: () => void;
 }
 
 export const PitchView: React.FC<PitchViewProps> = ({
@@ -37,6 +39,7 @@ export const PitchView: React.FC<PitchViewProps> = ({
   onShuffle,
   onUpdateResult,
   onOpenShareModal,
+  onOpenRecordMatch,
 }) => {
   const pitchRef = useRef<HTMLDivElement>(null);
   const [copiedWhatsApp, setCopiedWhatsApp] = useState(false);
@@ -215,6 +218,14 @@ export const PitchView: React.FC<PitchViewProps> = ({
             title="Share Options"
           >
             <Share2 className="w-4 h-4 stroke-[2.5]" />
+          </button>
+
+          <button
+            onClick={onOpenRecordMatch}
+            className="flex items-center gap-2 px-3.5 py-2 bg-[#FFB000] hover:bg-[#CCFF00] text-black font-black text-xs border-2 border-black neo-btn transition-all cursor-pointer uppercase"
+          >
+            <ClipboardPlus className="w-3.5 h-3.5 stroke-[2.5]" />
+            <span>RECORD MATCH</span>
           </button>
         </div>
       </div>

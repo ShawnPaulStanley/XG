@@ -266,6 +266,12 @@ export default function App() {
     setMatchStats(await loadMatchStats(user.id));
   };
 
+  const lineupAppearanceIds = divisionResult
+    ? [...divisionResult.teamA.assignedPlayers, ...divisionResult.teamB.assignedPlayers]
+        .map((entry) => entry.player.id)
+        .filter((id, index, ids) => ids.indexOf(id) === index)
+    : [];
+
   const handleSignOut = async () => {
     try {
       await signOut();
@@ -386,8 +392,6 @@ export default function App() {
             setActiveTab={setActiveTab}
             onGenerate={handleGenerateTeams}
             stats={matchStats}
-            onRecordMatch={() => setIsMatchRecorderOpen(true)}
-            canRecordMatch={Boolean(user)}
             hasResult={Boolean(divisionResult)}
           />
         )}
@@ -421,6 +425,7 @@ export default function App() {
             onShuffle={handleShuffle}
             onUpdateResult={setDivisionResult}
             onOpenShareModal={() => setIsShareModalOpen(true)}
+            onOpenRecordMatch={() => setIsMatchRecorderOpen(true)}
           />
         )}
 
@@ -452,6 +457,7 @@ export default function App() {
                 onShuffle={handleShuffle}
                 onUpdateResult={setDivisionResult}
                 onOpenShareModal={() => setIsShareModalOpen(true)}
+                onOpenRecordMatch={() => setIsMatchRecorderOpen(true)}
               />
             )}
           </div>
@@ -493,6 +499,7 @@ export default function App() {
       <MatchRecorderModal
         isOpen={isMatchRecorderOpen}
         players={players}
+        appearanceIds={lineupAppearanceIds}
         onClose={() => setIsMatchRecorderOpen(false)}
         onSave={handleRecordMatch}
       />
