@@ -6,8 +6,8 @@ interface StatsTabProps {
 }
 
 const RankingColumn: React.FC<{ title: string; rows: PlayerRanking[]; accent: string }> = ({ title, rows, accent }) => (
-  <section className="border-4 border-black bg-white shadow-[6px_6px_0px_0px_#000000]">
-    <h2 className={`border-b-4 border-black p-4 text-lg font-black uppercase ${accent}`}>{title}</h2>
+  <section className="border-4 border-black bg-white text-black shadow-[6px_6px_0px_0px_#000000]">
+    <h2 className={`border-b-4 border-black p-4 text-lg font-black uppercase text-black ${accent}`}>{title}</h2>
     {rows.length === 0 ? (
       <p className="p-5 text-sm font-bold uppercase">No records yet</p>
     ) : (
