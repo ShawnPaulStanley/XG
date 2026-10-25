@@ -68,6 +68,12 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ isConfigured }) => {
             </p>
           )}
 
+          {isConfigured && (
+            <p className="mb-4 border-2 border-black bg-[#00F0FF] p-3 text-xs font-black">
+              If registration fails, run the complete Supabase schema file before trying again.
+            </p>
+          )}
+
           <div className="space-y-4">
             <label className="block text-xs font-black uppercase">
               Username

@@ -72,18 +72,20 @@ export async function registerWithUsername(username: string, password: string): 
   const validationError = validateCredentials(normalizedUsername, password);
   if (validationError) throw new Error(validationError);
 
-  const { data: available, error: availabilityError } = await supabase.rpc('is_username_available', {
-    requested_username: normalizedUsername,
-  });
-  if (availabilityError) throw availabilityError;
-  if (!available) throw new Error('That username is already taken.');
-
-  const { error } = await supabase.auth.signUp({
+  const { data, error } = await supabase.auth.signUp({
     email: getInternalEmail(normalizedUsername),
     password,
     options: { data: { username: normalizedUsername } },
   });
-  if (error) throw error;
+  if (error) {
+    if (error.message.toLowerCase().includes('database error saving new user')) {
+      throw new Error('Supabase setup is incomplete. Run the full supabase/schema.sql file in the Supabase SQL Editor.');
+    }
+    throw error;
+  }
+  if (!data.user) {
+    throw new Error('Registration did not create an account. Check Supabase Auth settings and try again.');
+  }
 }
 
 export async function signInWithUsername(username: string, password: string): Promise<void> {
