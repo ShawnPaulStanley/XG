@@ -5,6 +5,7 @@ import {
   LayoutGrid,
   Shirt,
   Trophy,
+  BarChart3,
   LogOut,
 } from 'lucide-react';
 import { User } from '@supabase/supabase-js';
@@ -36,6 +37,7 @@ export const Header: React.FC<HeaderProps> = ({
     { id: 'players', label: 'PLAYERS', icon: <Users className="w-4 h-4" />, badge: playerCount },
     { id: 'teams', label: 'TEAMS', icon: <Shirt className="w-4 h-4" /> },
     { id: 'pitch', label: 'PITCH VIEW', icon: <LayoutGrid className="w-4 h-4" /> },
+    { id: 'stats', label: 'STATS', icon: <BarChart3 className="w-4 h-4" /> },
   ];
 
   return (

@@ -4,12 +4,15 @@ const STORAGE_KEYS = {
   PLAYERS: 'xg_players_v1',
   FORMATION_ID: 'xg_formation_id_v1',
   DIVISION_RESULT: 'xg_last_result_v1',
-  TEAM_NAMES: 'xg_team_names_v1',
 };
 
-export function loadStoredPlayers(): Player[] {
+function scopedKey(key: string, userId: string): string {
+  return `${key}_${userId}`;
+}
+
+export function loadStoredPlayers(userId: string): Player[] {
   try {
-    const raw = localStorage.getItem(STORAGE_KEYS.PLAYERS);
+    const raw = localStorage.getItem(scopedKey(STORAGE_KEYS.PLAYERS, userId));
     if (!raw) return [];
     return JSON.parse(raw);
   } catch (e) {
@@ -18,33 +21,33 @@ export function loadStoredPlayers(): Player[] {
   }
 }
 
-export function saveStoredPlayers(players: Player[]): void {
+export function saveStoredPlayers(players: Player[], userId: string): void {
   try {
-    localStorage.setItem(STORAGE_KEYS.PLAYERS, JSON.stringify(players));
+    localStorage.setItem(scopedKey(STORAGE_KEYS.PLAYERS, userId), JSON.stringify(players));
   } catch (e) {
     console.error('Failed to save players', e);
   }
 }
 
-export function loadStoredFormationId(): string | null {
+export function loadStoredFormationId(userId: string): string | null {
   try {
-    return localStorage.getItem(STORAGE_KEYS.FORMATION_ID);
+    return localStorage.getItem(scopedKey(STORAGE_KEYS.FORMATION_ID, userId));
   } catch (e) {
     return null;
   }
 }
 
-export function saveStoredFormationId(id: string): void {
+export function saveStoredFormationId(id: string, userId: string): void {
   try {
-    localStorage.setItem(STORAGE_KEYS.FORMATION_ID, id);
+    localStorage.setItem(scopedKey(STORAGE_KEYS.FORMATION_ID, userId), id);
   } catch (e) {
     console.error('Failed to save formation id', e);
   }
 }
 
-export function loadStoredDivisionResult(): DivisionResult | null {
+export function loadStoredDivisionResult(userId: string): DivisionResult | null {
   try {
-    const raw = localStorage.getItem(STORAGE_KEYS.DIVISION_RESULT);
+    const raw = localStorage.getItem(scopedKey(STORAGE_KEYS.DIVISION_RESULT, userId));
     if (!raw) return null;
     return JSON.parse(raw);
   } catch (e) {
@@ -52,12 +55,12 @@ export function loadStoredDivisionResult(): DivisionResult | null {
   }
 }
 
-export function saveStoredDivisionResult(result: DivisionResult | null): void {
+export function saveStoredDivisionResult(result: DivisionResult | null, userId: string): void {
   try {
     if (!result) {
-      localStorage.removeItem(STORAGE_KEYS.DIVISION_RESULT);
+      localStorage.removeItem(scopedKey(STORAGE_KEYS.DIVISION_RESULT, userId));
     } else {
-      localStorage.setItem(STORAGE_KEYS.DIVISION_RESULT, JSON.stringify(result));
+      localStorage.setItem(scopedKey(STORAGE_KEYS.DIVISION_RESULT, userId), JSON.stringify(result));
     }
   } catch (e) {
     console.error('Failed to save division result', e);

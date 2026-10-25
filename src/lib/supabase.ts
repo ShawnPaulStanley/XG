@@ -1,5 +1,5 @@
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
-import { MatchStats, Player, PositionKey } from '../types';
+import { MatchStats, Player, PlayerRanking, PositionKey } from '../types';
 
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
 const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
@@ -131,6 +131,7 @@ export async function upsertRemotePlayers(players: Player[], userId: string): Pr
   const { error } = await supabase.from('players').upsert(players.map((player) => toRow(player, userId)));
   if (error) {
     console.error('Failed to save players to Supabase', error);
+    throw new Error(`Unable to save the current player roster before recording the match: ${error.message}`);
   }
 }
 
@@ -144,33 +145,46 @@ export async function deleteRemotePlayer(id: string, userId: string): Promise<vo
 }
 
 export async function loadMatchStats(userId: string): Promise<MatchStats> {
-    if (!supabase) return { matches: 0, goals: 0, assists: 0, appearances: 0, topScorer: null };
+    const emptyStats: MatchStats = { matches: 0, goals: 0, assists: 0, appearances: 0, goalsRanking: [], assistsRanking: [], appearancesRanking: [] };
+    if (!supabase) return emptyStats;
 
-    const [{ count: matches, error: matchesError }, { data: goals, error: goalsError }, { count: appearances, error: appearancesError }] = await Promise.all([
+    const [{ count: matches, error: matchesError }, { data: players, error: playersError }, { data: goals, error: goalsError }, { data: appearances, error: appearancesError }] = await Promise.all([
       supabase.from('matches').select('id', { count: 'exact', head: true }).eq('user_id', userId),
-      supabase
-        .from('goals')
-        .select('scorer_id, assist_id, players!goals_scorer_id_fkey(name)')
-        .eq('user_id', userId),
-      supabase.from('match_appearances').select('player_id', { count: 'exact', head: true }).eq('user_id', userId),
+      supabase.from('players').select('id, name').eq('user_id', userId),
+      supabase.from('goals').select('scorer_id, assist_id').eq('user_id', userId),
+      supabase.from('match_appearances').select('player_id').eq('user_id', userId),
     ]);
 
-    if (matchesError || goalsError || appearancesError) {
-      console.error('Failed to load match stats from Supabase', matchesError || goalsError || appearancesError);
-      return { matches: 0, goals: 0, assists: 0, appearances: 0, topScorer: null };
+    if (matchesError || playersError || goalsError || appearancesError) {
+      console.error('Failed to load match stats from Supabase', matchesError || playersError || goalsError || appearancesError);
+      return emptyStats;
     }
 
-    const scorerCounts = new Map<string, { name: string; goals: number }>();
-    let assists = 0;
+    const playerNames = new Map((players ?? []).map((player) => [player.id, player.name]));
+    const goalsByPlayer = new Map<string, number>();
+    const assistsByPlayer = new Map<string, number>();
+    const appearancesByPlayer = new Map<string, number>();
     (goals ?? []).forEach((goal) => {
-      const player = Array.isArray(goal.players) ? goal.players[0] : goal.players;
-      const current = scorerCounts.get(goal.scorer_id) ?? { name: player?.name ?? 'Unknown', goals: 0 };
-      scorerCounts.set(goal.scorer_id, { ...current, goals: current.goals + 1 });
-      if (goal.assist_id) assists += 1;
+      goalsByPlayer.set(goal.scorer_id, (goalsByPlayer.get(goal.scorer_id) ?? 0) + 1);
+      if (goal.assist_id) assistsByPlayer.set(goal.assist_id, (assistsByPlayer.get(goal.assist_id) ?? 0) + 1);
+    });
+    (appearances ?? []).forEach((appearance) => {
+      appearancesByPlayer.set(appearance.player_id, (appearancesByPlayer.get(appearance.player_id) ?? 0) + 1);
     });
 
-    const topScorer = [...scorerCounts.values()].sort((a, b) => b.goals - a.goals)[0] ?? null;
-    return { matches: matches ?? 0, goals: goals?.length ?? 0, assists, appearances: appearances ?? 0, topScorer };
+    const rank = (counts: Map<string, number>): PlayerRanking[] => [...counts.entries()]
+      .map(([playerId, count]) => ({ playerId, name: playerNames.get(playerId) ?? 'Unknown player', count }))
+      .sort((a, b) => b.count - a.count || a.name.localeCompare(b.name));
+
+    return {
+      matches: matches ?? 0,
+      goals: goals?.length ?? 0,
+      assists: [...assistsByPlayer.values()].reduce((total, count) => total + count, 0),
+      appearances: appearances?.length ?? 0,
+      goalsRanking: rank(goalsByPlayer),
+      assistsRanking: rank(assistsByPlayer),
+      appearancesRanking: rank(appearancesByPlayer),
+    };
 }
 
 export interface MatchGoalInput {
@@ -226,9 +240,9 @@ export async function recordMatch(
         await supabase.from('matches').delete().eq('id', match.id).eq('user_id', userId);
         throw describeSupabaseError(error);
       }
-  }
+    }
 
-  if (appearanceIds.length > 0) {
+    if (appearanceIds.length > 0) {
       const { error } = await supabase.from('match_appearances').insert(
         appearanceIds.map((playerId) => ({ user_id: userId, match_id: match.id, player_id: playerId })),
       );
@@ -236,5 +250,5 @@ export async function recordMatch(
         await supabase.from('matches').delete().eq('id', match.id).eq('user_id', userId);
         throw describeSupabaseError(error);
       }
-  }
+    }
 }

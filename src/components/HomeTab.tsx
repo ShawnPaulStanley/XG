@@ -1,5 +1,5 @@
 import React from 'react';
-import { ActiveTab, MatchStats, Player } from '../types';
+import { ActiveTab, Player } from '../types';
 import { Users, ArrowRight, Shirt } from 'lucide-react';
 
 interface HomeTabProps {
@@ -7,7 +7,6 @@ interface HomeTabProps {
   setActiveTab: (tab: ActiveTab) => void;
   onGenerate: () => void;
   hasResult: boolean;
-  stats: MatchStats;
 }
 
 export const HomeTab: React.FC<HomeTabProps> = ({
@@ -15,7 +14,6 @@ export const HomeTab: React.FC<HomeTabProps> = ({
   setActiveTab,
   onGenerate,
   hasResult,
-  stats,
 }) => {
   const attendingCount = players.filter((p) => p.isAttending !== false).length;
 
@@ -66,29 +64,6 @@ export const HomeTab: React.FC<HomeTabProps> = ({
               <Shirt className="w-4 h-4 stroke-[2.5]" />
               <span>VIEW PITCH LINEUP</span>
             </button>
-          </div>
-
-          <div className="grid grid-cols-2 sm:grid-cols-5 gap-2 border-t-4 border-black pt-5 text-left">
-            <div className="border-2 border-black bg-zinc-100 p-3">
-              <p className="text-[10px] font-black uppercase">Matches</p>
-              <p className="text-2xl font-black">{stats.matches}</p>
-            </div>
-            <div className="border-2 border-black bg-zinc-100 p-3">
-              <p className="text-[10px] font-black uppercase">Goals</p>
-              <p className="text-2xl font-black">{stats.goals}</p>
-            </div>
-            <div className="border-2 border-black bg-zinc-100 p-3">
-              <p className="text-[10px] font-black uppercase">Assists</p>
-              <p className="text-2xl font-black">{stats.assists}</p>
-            </div>
-            <div className="border-2 border-black bg-zinc-100 p-3">
-              <p className="text-[10px] font-black uppercase">Appearances</p>
-              <p className="text-2xl font-black">{stats.appearances}</p>
-            </div>
-            <div className="border-2 border-black bg-zinc-100 p-3">
-              <p className="text-[10px] font-black uppercase">Top scorer</p>
-              <p className="truncate text-sm font-black">{stats.topScorer ? `${stats.topScorer.name} (${stats.topScorer.goals})` : '—'}</p>
-            </div>
           </div>
         </div>
       </div>

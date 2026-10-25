@@ -81,14 +81,22 @@ export interface DivisionResult {
   generatedAt: number;
 }
 
-export type ActiveTab = 'home' | 'players' | 'teams' | 'pitch';
+export type ActiveTab = 'home' | 'players' | 'teams' | 'pitch' | 'stats';
+
+export interface PlayerRanking {
+  playerId: string;
+  name: string;
+  count: number;
+}
 
 export interface MatchStats {
   matches: number;
   goals: number;
   assists: number;
   appearances: number;
-  topScorer: { name: string; goals: number } | null;
+  goalsRanking: PlayerRanking[];
+  assistsRanking: PlayerRanking[];
+  appearancesRanking: PlayerRanking[];
 }
 
 export interface KitStyle {

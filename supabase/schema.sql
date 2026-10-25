@@ -141,10 +141,108 @@ create policy "Users manage their players" on public.players for all
 create policy "Users manage their matches" on public.matches for all
   using (auth.uid() = user_id) with check (auth.uid() = user_id);
 create policy "Users manage their match players" on public.match_players for all
-  using (auth.uid() = user_id) with check (auth.uid() = user_id);
+  using (
+    auth.uid() = user_id
+    and exists (
+      select 1 from public.matches
+      where matches.id = match_players.match_id
+        and matches.user_id = auth.uid()
+    )
+    and exists (
+      select 1 from public.players
+      where players.id = match_players.player_id
+        and players.user_id = auth.uid()
+    )
+  )
+  with check (
+    auth.uid() = user_id
+    and exists (
+      select 1 from public.matches
+      where matches.id = match_players.match_id
+        and matches.user_id = auth.uid()
+    )
+    and exists (
+      select 1 from public.players
+      where players.id = match_players.player_id
+        and players.user_id = auth.uid()
+    )
+  );
 create policy "Users manage their goals" on public.goals for all
-  using (auth.uid() = user_id) with check (auth.uid() = user_id);
+  using (
+    auth.uid() = user_id
+    and exists (
+      select 1 from public.matches
+      where matches.id = goals.match_id
+        and matches.user_id = auth.uid()
+    )
+    and exists (
+      select 1 from public.players
+      where players.id = goals.scorer_id
+        and players.user_id = auth.uid()
+    )
+  )
+  with check (
+    auth.uid() = user_id
+    and exists (
+      select 1 from public.matches
+      where matches.id = goals.match_id
+        and matches.user_id = auth.uid()
+    )
+    and exists (
+      select 1 from public.players
+      where players.id = goals.scorer_id
+        and players.user_id = auth.uid()
+    )
+    and (
+      goals.assist_id is null
+      or exists (
+        select 1 from public.players
+        where players.id = goals.assist_id
+          and players.user_id = auth.uid()
+      )
+    )
+  );
 create policy "Users manage their player stats" on public.player_stats for all
-  using (auth.uid() = user_id) with check (auth.uid() = user_id);
+  using (
+    auth.uid() = user_id
+    and exists (
+      select 1 from public.players
+      where players.id = player_stats.player_id
+        and players.user_id = auth.uid()
+    )
+  )
+  with check (
+    auth.uid() = user_id
+    and exists (
+      select 1 from public.players
+      where players.id = player_stats.player_id
+        and players.user_id = auth.uid()
+    )
+  );
 create policy "Users manage their match appearances" on public.match_appearances for all
-  using (auth.uid() = user_id) with check (auth.uid() = user_id);
+  using (
+    auth.uid() = user_id
+    and exists (
+      select 1 from public.matches
+      where matches.id = match_appearances.match_id
+        and matches.user_id = auth.uid()
+    )
+    and exists (
+      select 1 from public.players
+      where players.id = match_appearances.player_id
+        and players.user_id = auth.uid()
+    )
+  )
+  with check (
+    auth.uid() = user_id
+    and exists (
+      select 1 from public.matches
+      where matches.id = match_appearances.match_id
+        and matches.user_id = auth.uid()
+    )
+    and exists (
+      select 1 from public.players
+      where players.id = match_appearances.player_id
+        and players.user_id = auth.uid()
+    )
+  );

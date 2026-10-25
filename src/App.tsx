@@ -43,59 +43,27 @@ import { ShareModal } from './components/ShareModal';
 import { KeyboardShortcutsModal } from './components/KeyboardShortcutsModal';
 import { MatchRecorderModal } from './components/MatchRecorderModal';
 import { AuthScreen } from './components/AuthScreen';
+import { StatsTab } from './components/StatsTab';
+
+function createDefaultPlayers(): Player[] {
+  const createdAt = Date.now();
+  return SAMPLE_ROSTERS[0].players.map((player, index) => ({
+    ...player,
+    id: `init_${index}_${createdAt}`,
+    createdAt: createdAt + index,
+  }));
+}
 
 export default function App() {
   const [activeTab, setActiveTab] = useState<ActiveTab>('home');
-  const [players, setPlayers] = useState<Player[]>(() => {
-    const stored = loadStoredPlayers();
-    // If stored players exist and are not old pros, migrate updated names/positions and ensure Joshua is present
-    if (stored.length > 0) {
-      const hasOldPros = stored.some(p => ['Neuer', 'Mbappe', 'Haaland', 'Courtois', 'Ramos'].some(name => p.name.includes(name)));
-      if (!hasOldPros) {
-        const updated = stored.map(p => {
-          const lower = p.name.toLowerCase();
-          if (lower.includes('samduarai') || lower === 'samduarai ruban' || lower === 'samduarai ruben') {
-            return { ...p, name: 'Sam' };
-          }
-          if (lower === 'issac pradeep') {
-            return { ...p, name: 'Issac' };
-          }
-          if (lower === 'shawn') {
-            return { ...p, preferredPositions: ['CM', 'CAM', 'CDM'] };
-          }
-          return p;
-        });
 
-        if (!updated.some(p => p.name.toLowerCase() === 'joshua')) {
-          updated.push({
-            id: `init_joshua_${Date.now()}`,
-            name: 'Joshua',
-            preferredPositions: ['ST'],
-            kitNumber: 19,
-            isAttending: true,
-            createdAt: Date.now(),
-          });
-        }
-        return updated;
-      }
-    }
-    // Default load 19-player custom squad
-    return SAMPLE_ROSTERS[0].players.map((p, idx) => ({
-      ...p,
-      id: `init_${idx}_${Date.now()}`,
-      createdAt: Date.now() + idx,
-    }));
-  });
+  const [players, setPlayers] = useState<Player[]>([]);
 
-  const [selectedFormation, setSelectedFormation] = useState<Formation>(() => {
-    const storedId = loadStoredFormationId();
-    if (storedId) return getFormationById(storedId);
-    return FORMATIONS.find((f) => f.id === '7v7-2-3-1') || FORMATIONS[0];
-  });
+  const [selectedFormation, setSelectedFormation] = useState<Formation>(
+    FORMATIONS.find((f) => f.id === '7v7-2-3-1') || FORMATIONS[0],
+  );
 
-  const [divisionResult, setDivisionResult] = useState<DivisionResult | null>(() => {
-    return loadStoredDivisionResult();
-  });
+  const [divisionResult, setDivisionResult] = useState<DivisionResult | null>(null);
 
   // Modal controls
   const [isPlayerModalOpen, setIsPlayerModalOpen] = useState(false);
@@ -107,7 +75,7 @@ export default function App() {
   const [user, setUser] = useState<User | null>(null);
   const [isAuthLoading, setIsAuthLoading] = useState(true);
   const [isRemoteReady, setIsRemoteReady] = useState(false);
-  const [matchStats, setMatchStats] = useState<MatchStats>({ matches: 0, goals: 0, assists: 0, appearances: 0, topScorer: null });
+  const [matchStats, setMatchStats] = useState<MatchStats>({ matches: 0, goals: 0, assists: 0, appearances: 0, goalsRanking: [], assistsRanking: [], appearancesRanking: [] });
 
   useEffect(() => {
     if (!supabase) {
@@ -121,8 +89,14 @@ export default function App() {
       setUser(data.session?.user ?? null);
       setIsAuthLoading(false);
       if (data.session?.user) {
+        const userId = data.session.user.id;
+        const storedFormationId = loadStoredFormationId(userId);
+        const storedResult = loadStoredDivisionResult(userId);
+        setSelectedFormation(storedFormationId ? getFormationById(storedFormationId) : (FORMATIONS.find((f) => f.id === '7v7-2-3-1') || FORMATIONS[0]));
+        setDivisionResult(storedResult);
         void loadRemotePlayers(data.session.user.id).then((remotePlayers) => {
-          if (!cancelled && remotePlayers.length > 0) setPlayers(remotePlayers);
+          const storedPlayers = loadStoredPlayers(userId);
+          if (!cancelled) setPlayers(remotePlayers.length > 0 ? remotePlayers : storedPlayers.length > 0 ? storedPlayers : createDefaultPlayers());
           if (!cancelled) setIsRemoteReady(true);
         });
         void loadMatchStats(data.session.user.id).then((stats) => {
@@ -137,15 +111,20 @@ export default function App() {
       setUser(session?.user ?? null);
       setIsAuthLoading(false);
       if (session?.user) {
+        const userId = session.user.id;
+        const storedFormationId = loadStoredFormationId(userId);
+        setSelectedFormation(storedFormationId ? getFormationById(storedFormationId) : (FORMATIONS.find((f) => f.id === '7v7-2-3-1') || FORMATIONS[0]));
+        setDivisionResult(loadStoredDivisionResult(userId));
         setIsRemoteReady(false);
         void loadRemotePlayers(session.user.id).then((remotePlayers) => {
-          if (!cancelled && remotePlayers.length > 0) setPlayers(remotePlayers);
+          const storedPlayers = loadStoredPlayers(userId);
+          if (!cancelled) setPlayers(remotePlayers.length > 0 ? remotePlayers : storedPlayers.length > 0 ? storedPlayers : createDefaultPlayers());
           if (!cancelled) setIsRemoteReady(true);
         });
         void loadMatchStats(session.user.id).then(setMatchStats);
       } else {
         setIsRemoteReady(false);
-        setMatchStats({ matches: 0, goals: 0, assists: 0, appearances: 0, topScorer: null });
+        setMatchStats({ matches: 0, goals: 0, assists: 0, appearances: 0, goalsRanking: [], assistsRanking: [], appearancesRanking: [] });
       }
     });
 
@@ -156,17 +135,22 @@ export default function App() {
   }, []);
 
   useEffect(() => {
-    saveStoredPlayers(players);
-    if (user && isRemoteReady) void upsertRemotePlayers(players, user.id);
+    if (!user) return;
+    saveStoredPlayers(players, user.id);
+    if (user && isRemoteReady) {
+      void upsertRemotePlayers(players, user.id).catch((error) => {
+        console.error('Failed to sync players after roster change', error);
+      });
+    }
   }, [players, user, isRemoteReady]);
 
   useEffect(() => {
-    saveStoredFormationId(selectedFormation.id);
-  }, [selectedFormation]);
+    if (user) saveStoredFormationId(selectedFormation.id, user.id);
+  }, [selectedFormation, user]);
 
   useEffect(() => {
-    saveStoredDivisionResult(divisionResult);
-  }, [divisionResult]);
+    if (user) saveStoredDivisionResult(divisionResult, user.id);
+  }, [divisionResult, user]);
 
   // Core Team Generator function - Filters attending players and incorporates ALL of them on field
   const handleGenerateTeams = useCallback(() => {
@@ -262,6 +246,8 @@ export default function App() {
     notes: string,
   ) => {
     if (!user) throw new Error('Log in before recording a match.');
+    if (!isRemoteReady) throw new Error('Your player roster is still loading. Please wait a moment and try again.');
+    await upsertRemotePlayers(players, user.id);
     await recordMatch(user.id, teamAScore, teamBScore, goals, appearanceIds, playedAt, notes);
     setMatchStats(await loadMatchStats(user.id));
   };
@@ -391,7 +377,6 @@ export default function App() {
             players={players}
             setActiveTab={setActiveTab}
             onGenerate={handleGenerateTeams}
-            stats={matchStats}
             hasResult={Boolean(divisionResult)}
           />
         )}
@@ -428,6 +413,8 @@ export default function App() {
             onOpenRecordMatch={() => setIsMatchRecorderOpen(true)}
           />
         )}
+
+        {activeTab === 'stats' && <StatsTab stats={matchStats} />}
 
         {activeTab === 'teams' && (
           <div className="space-y-6 py-4">

@@ -19,7 +19,10 @@ Run the **entire** [`supabase/schema.sql`](./supabase/schema.sql) file in one
 Supabase SQL Editor query. Do not run only the selected section. This creates
 the auth trigger and profile table required during registration.
 The schema includes players, matches, match lineups, goals, and aggregate
-player statistics. The browser only uses the public anonymous key; never put a
+player statistics. Every row is associated with the authenticated Supabase
+user, and browser storage is also keyed by that user's ID, so rosters, team
+layouts, match history, goals, assists, and appearances are private to each
+username. The browser only uses the public anonymous key; never put a
 Supabase service-role key in Vercel client-side environment variables.
 
 In Supabase Authentication, use the Email provider for password-based auth and
