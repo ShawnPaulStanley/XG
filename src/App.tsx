@@ -25,7 +25,6 @@ import {
   loadRemotePlayers,
   MatchGoalInput,
   recordMatch,
-  signInWithGoogle,
   signOut,
   supabase,
   upsertRemotePlayers,
@@ -43,6 +42,7 @@ import { TeamCard } from './components/TeamCard';
 import { ShareModal } from './components/ShareModal';
 import { KeyboardShortcutsModal } from './components/KeyboardShortcutsModal';
 import { MatchRecorderModal } from './components/MatchRecorderModal';
+import { AuthScreen } from './components/AuthScreen';
 
 export default function App() {
   const [activeTab, setActiveTab] = useState<ActiveTab>('home');
@@ -105,34 +105,46 @@ export default function App() {
   const [isShortcutsModalOpen, setIsShortcutsModalOpen] = useState(false);
   const [isMatchRecorderOpen, setIsMatchRecorderOpen] = useState(false);
   const [user, setUser] = useState<User | null>(null);
-  const [authError, setAuthError] = useState('');
+  const [isAuthLoading, setIsAuthLoading] = useState(true);
+  const [isRemoteReady, setIsRemoteReady] = useState(false);
   const [matchStats, setMatchStats] = useState<MatchStats>({ matches: 0, goals: 0, assists: 0, topScorer: null });
 
   useEffect(() => {
-    if (!supabase) return;
+    if (!supabase) {
+      setIsAuthLoading(false);
+      return;
+    }
 
     let cancelled = false;
     supabase.auth.getSession().then(({ data }) => {
       if (cancelled) return;
       setUser(data.session?.user ?? null);
+      setIsAuthLoading(false);
       if (data.session?.user) {
         void loadRemotePlayers(data.session.user.id).then((remotePlayers) => {
           if (!cancelled && remotePlayers.length > 0) setPlayers(remotePlayers);
+          if (!cancelled) setIsRemoteReady(true);
         });
         void loadMatchStats(data.session.user.id).then((stats) => {
           if (!cancelled) setMatchStats(stats);
         });
+      } else {
+        setIsRemoteReady(false);
       }
     });
 
     const { data: listener } = supabase.auth.onAuthStateChange((_event, session) => {
       setUser(session?.user ?? null);
+      setIsAuthLoading(false);
       if (session?.user) {
+        setIsRemoteReady(false);
         void loadRemotePlayers(session.user.id).then((remotePlayers) => {
           if (!cancelled && remotePlayers.length > 0) setPlayers(remotePlayers);
+          if (!cancelled) setIsRemoteReady(true);
         });
         void loadMatchStats(session.user.id).then(setMatchStats);
       } else {
+        setIsRemoteReady(false);
         setMatchStats({ matches: 0, goals: 0, assists: 0, topScorer: null });
       }
     });
@@ -145,8 +157,8 @@ export default function App() {
 
   useEffect(() => {
     saveStoredPlayers(players);
-    if (user) void upsertRemotePlayers(players, user.id);
-  }, [players, user]);
+    if (user && isRemoteReady) void upsertRemotePlayers(players, user.id);
+  }, [players, user, isRemoteReady]);
 
   useEffect(() => {
     saveStoredFormationId(selectedFormation.id);
@@ -248,28 +260,26 @@ export default function App() {
     playedAt: string,
     notes: string,
   ) => {
-    if (!user) throw new Error('Sign in with Google before recording a match.');
+    if (!user) throw new Error('Log in before recording a match.');
     await recordMatch(user.id, teamAScore, teamBScore, goals, playedAt, notes);
     setMatchStats(await loadMatchStats(user.id));
   };
 
-  const handleSignIn = async () => {
-    setAuthError('');
-    try {
-      await signInWithGoogle();
-    } catch (error) {
-      setAuthError(error instanceof Error ? error.message : 'Google sign-in failed.');
-    }
-  };
-
   const handleSignOut = async () => {
-    setAuthError('');
     try {
       await signOut();
     } catch (error) {
-      setAuthError(error instanceof Error ? error.message : 'Sign out failed.');
+      console.error('Sign out failed', error);
     }
   };
+
+  if (isAuthLoading) {
+    return <div className="min-h-screen bg-zinc-950" />;
+  }
+
+  if (!user) {
+    return <AuthScreen isConfigured={Boolean(supabase)} />;
+  }
 
   // Clear all players
   const handleClearAllPlayers = () => {
@@ -364,16 +374,8 @@ export default function App() {
         onGenerate={handleGenerateTeams}
         onOpenShortcuts={() => setIsShortcutsModalOpen(true)}
         user={user}
-        authConfigured={Boolean(supabase)}
-        onSignIn={() => void handleSignIn()}
         onSignOut={() => void handleSignOut()}
       />
-
-      {authError && (
-        <div className="mx-auto mt-4 w-full max-w-7xl border-3 border-black bg-[#FF5F56] px-4 py-3 text-xs font-black">
-          {authError}
-        </div>
-      )}
 
       {/* Main Tab Content */}
       <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6">

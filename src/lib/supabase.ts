@@ -43,14 +43,61 @@ function toRow(player: Player, userId: string): PlayerRow {
   };
 }
 
-export async function signInWithGoogle(): Promise<void> {
+const USERNAME_PATTERN = /^[a-z0-9_]{3,24}$/;
+const INTERNAL_EMAIL_DOMAIN = 'users.xg.invalid';
+
+function normalizeUsername(username: string): string {
+  return username.trim().toLowerCase();
+}
+
+function getInternalEmail(username: string): string {
+  return `${normalizeUsername(username)}@${INTERNAL_EMAIL_DOMAIN}`;
+}
+
+function validateCredentials(username: string, password: string): string {
+  const normalizedUsername = normalizeUsername(username);
+  if (!USERNAME_PATTERN.test(normalizedUsername)) {
+    return 'Username must be 3-24 characters using only letters, numbers, and underscores.';
+  }
+  if (password.length < 8) {
+    return 'Password must be at least 8 characters.';
+  }
+  return '';
+}
+
+export async function registerWithUsername(username: string, password: string): Promise<void> {
   if (!supabase) throw new Error('Supabase is not configured.');
 
-  const { error } = await supabase.auth.signInWithOAuth({
-    provider: 'google',
-    options: { redirectTo: window.location.origin },
+  const normalizedUsername = normalizeUsername(username);
+  const validationError = validateCredentials(normalizedUsername, password);
+  if (validationError) throw new Error(validationError);
+
+  const { data: available, error: availabilityError } = await supabase.rpc('is_username_available', {
+    requested_username: normalizedUsername,
+  });
+  if (availabilityError) throw availabilityError;
+  if (!available) throw new Error('That username is already taken.');
+
+  const { error } = await supabase.auth.signUp({
+    email: getInternalEmail(normalizedUsername),
+    password,
+    options: { data: { username: normalizedUsername } },
   });
   if (error) throw error;
+}
+
+export async function signInWithUsername(username: string, password: string): Promise<void> {
+  if (!supabase) throw new Error('Supabase is not configured.');
+
+  const normalizedUsername = normalizeUsername(username);
+  const validationError = validateCredentials(normalizedUsername, password);
+  if (validationError) throw new Error(validationError);
+
+  const { error } = await supabase.auth.signInWithPassword({
+    email: getInternalEmail(normalizedUsername),
+    password,
+  });
+  if (error) throw new Error('Invalid username or password.');
 }
 
 export async function signOut(): Promise<void> {

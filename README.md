@@ -20,9 +20,11 @@ The schema includes players, matches, match lineups, goals, and aggregate
 player statistics. The browser only uses the public anonymous key; never put a
 Supabase service-role key in Vercel client-side environment variables.
 
-In Supabase Authentication, enable the Google provider and add your deployed
-Vercel URL under the provider's redirect URLs. Google sign-in is required
-before XG can sync players or record a match.
+In Supabase Authentication, use the Email provider for password-based auth and
+disable email confirmations because XG does not collect email addresses. XG
+creates an internal, non-deliverable login identifier for Supabase Auth while
+the user only sees and enters a username. The profile trigger in the schema
+stores the unique username separately.
 
 ## Vercel
 
