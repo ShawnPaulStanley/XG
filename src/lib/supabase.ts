@@ -43,7 +43,7 @@ function toRow(player: Player, userId: string): PlayerRow {
   };
 }
 
-const USERNAME_PATTERN = /^[a-z0-9_]{3,24}$/;
+const USERNAME_PATTERN = /^[a-z0-9_]{3,}$/;
 const INTERNAL_EMAIL_DOMAIN = 'users.xg.invalid';
 
 function normalizeUsername(username: string): string {
@@ -57,7 +57,7 @@ function getInternalEmail(username: string): string {
 function validateCredentials(username: string, password: string): string {
   const normalizedUsername = normalizeUsername(username);
   if (!USERNAME_PATTERN.test(normalizedUsername)) {
-    return 'Username must be 3-24 characters using only letters, numbers, and underscores.';
+    return 'Username must be at least 3 characters using only letters, numbers, and underscores.';
   }
   if (password.length < 8) {
     return 'Password must be at least 8 characters.';

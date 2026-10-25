@@ -81,7 +81,7 @@ export const AuthScreen: React.FC<AuthScreenProps> = ({ isConfigured }) => {
                 className="mt-1 w-full border-2 border-black p-3 text-sm font-bold outline-none focus:bg-[#00F0FF]/20"
               />
               <span className="mt-1 block text-[10px] font-bold normal-case text-zinc-600">
-                3-24 characters: letters, numbers, and underscores
+                At least 3 characters: letters, numbers, and underscores
               </span>
             </label>
 

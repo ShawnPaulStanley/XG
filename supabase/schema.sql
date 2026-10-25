@@ -1,8 +1,12 @@
 create table if not exists public.profiles (
   id uuid primary key references auth.users(id) on delete cascade,
-  username text not null check (username ~ '^[a-z0-9_]{3,24}$'),
+  username text not null check (username ~ '^[a-z0-9_]{3,}$'),
   created_at timestamptz not null default now()
 );
+
+alter table public.profiles drop constraint if exists profiles_username_check;
+alter table public.profiles add constraint profiles_username_check
+  check (username ~ '^[a-z0-9_]{3,}$');
 
 create unique index if not exists profiles_username_lower_idx on public.profiles (lower(username));
 
@@ -14,7 +18,7 @@ as $$
 declare
   requested_username text := lower(trim(new.raw_user_meta_data ->> 'username'));
 begin
-  if requested_username is null or requested_username !~ '^[a-z0-9_]{3,24}$' then
+  if requested_username is null or requested_username !~ '^[a-z0-9_]{3,}$' then
     raise exception 'Invalid username';
   end if;
 
