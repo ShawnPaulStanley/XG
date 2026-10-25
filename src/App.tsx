@@ -273,14 +273,6 @@ export default function App() {
     }
   };
 
-  if (isAuthLoading) {
-    return <div className="min-h-screen bg-zinc-950" />;
-  }
-
-  if (!user) {
-    return <AuthScreen isConfigured={Boolean(supabase)} />;
-  }
-
   // Clear all players
   const handleClearAllPlayers = () => {
     setPlayers([]);
@@ -361,6 +353,14 @@ export default function App() {
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [handleGenerateTeams, divisionResult]);
+
+  if (isAuthLoading) {
+    return <div className="min-h-screen bg-zinc-950" />;
+  }
+
+  if (!user) {
+    return <AuthScreen isConfigured={Boolean(supabase)} />;
+  }
 
   return (
     <div className="min-h-screen bg-zinc-950 text-white font-sans antialiased selection:bg-emerald-500 selection:text-white flex flex-col">
