@@ -1,12 +1,15 @@
 import React from 'react';
-import { ActiveTab, Player } from '../types';
-import { Users, ArrowRight, Shirt } from 'lucide-react';
+import { ActiveTab, MatchStats, Player } from '../types';
+import { Users, ArrowRight, Shirt, ClipboardPlus } from 'lucide-react';
 
 interface HomeTabProps {
   players: Player[];
   setActiveTab: (tab: ActiveTab) => void;
   onGenerate: () => void;
   hasResult: boolean;
+  stats: MatchStats;
+  onRecordMatch: () => void;
+  canRecordMatch: boolean;
 }
 
 export const HomeTab: React.FC<HomeTabProps> = ({
@@ -14,6 +17,9 @@ export const HomeTab: React.FC<HomeTabProps> = ({
   setActiveTab,
   onGenerate,
   hasResult,
+  stats,
+  onRecordMatch,
+  canRecordMatch,
 }) => {
   const attendingCount = players.filter((p) => p.isAttending !== false).length;
 
@@ -50,6 +56,15 @@ export const HomeTab: React.FC<HomeTabProps> = ({
             </button>
 
             <button
+              onClick={onRecordMatch}
+              disabled={!canRecordMatch}
+              className="w-full flex items-center justify-center gap-2.5 px-6 py-3.5 bg-[#FFB000] hover:bg-[#CCFF00] text-black font-black text-sm border-3 border-black neo-shadow-sm transition-all cursor-pointer uppercase tracking-wider disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              <ClipboardPlus className="w-4 h-4 stroke-[2.5]" />
+              <span>RECORD MATCH</span>
+            </button>
+
+            <button
               onClick={() => setActiveTab('players')}
               className="w-full flex items-center justify-center gap-2.5 px-6 py-3.5 bg-white hover:bg-[#00F0FF] text-black font-extrabold text-sm border-3 border-black neo-shadow-sm transition-all cursor-pointer uppercase tracking-wider"
             >
@@ -65,9 +80,27 @@ export const HomeTab: React.FC<HomeTabProps> = ({
               <span>VIEW PITCH LINEUP</span>
             </button>
           </div>
+
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 border-t-4 border-black pt-5 text-left">
+            <div className="border-2 border-black bg-zinc-100 p-3">
+              <p className="text-[10px] font-black uppercase">Matches</p>
+              <p className="text-2xl font-black">{stats.matches}</p>
+            </div>
+            <div className="border-2 border-black bg-zinc-100 p-3">
+              <p className="text-[10px] font-black uppercase">Goals</p>
+              <p className="text-2xl font-black">{stats.goals}</p>
+            </div>
+            <div className="border-2 border-black bg-zinc-100 p-3">
+              <p className="text-[10px] font-black uppercase">Assists</p>
+              <p className="text-2xl font-black">{stats.assists}</p>
+            </div>
+            <div className="border-2 border-black bg-zinc-100 p-3">
+              <p className="text-[10px] font-black uppercase">Top scorer</p>
+              <p className="truncate text-sm font-black">{stats.topScorer ? `${stats.topScorer.name} (${stats.topScorer.goals})` : '—'}</p>
+            </div>
+          </div>
         </div>
       </div>
     </div>
   );
 };
-

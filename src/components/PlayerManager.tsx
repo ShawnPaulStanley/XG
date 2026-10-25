@@ -12,7 +12,6 @@ import {
   ListPlus,
   AlertTriangle,
   Shirt,
-  Sparkles,
   UserCheck,
   UserX,
   Sliders,
@@ -362,7 +361,6 @@ export const PlayerManager: React.FC<PlayerManagerProps> = ({
             onClick={onGenerate}
             className="pointer-events-auto flex items-center gap-2.5 px-6 py-3.5 bg-[#CCFF00] text-black font-black text-sm uppercase tracking-wider border-3 border-black neo-btn cursor-pointer shadow-2xl"
           >
-            <Sparkles className="w-5 h-5 fill-black" />
             <span>GENERATE TEAMS ({attendingCount} PLAYERS)</span>
           </button>
         </div>

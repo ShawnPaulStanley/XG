@@ -1,5 +1,6 @@
 create table if not exists public.players (
   id text primary key,
+  user_id uuid not null references auth.users(id) on delete cascade default auth.uid(),
   name text not null,
   preferred_positions text[] not null default '{}',
   kit_number integer,
@@ -10,7 +11,10 @@ create table if not exists public.players (
 
 create table if not exists public.matches (
   id uuid primary key default gen_random_uuid(),
+  user_id uuid not null references auth.users(id) on delete cascade default auth.uid(),
   played_at timestamptz not null default now(),
+  team_a_score integer not null default 0 check (team_a_score >= 0),
+  team_b_score integer not null default 0 check (team_b_score >= 0),
   venue text,
   notes text,
   created_at timestamptz not null default now()
@@ -27,6 +31,7 @@ create table if not exists public.match_players (
 
 create table if not exists public.goals (
   id uuid primary key default gen_random_uuid(),
+  user_id uuid not null references auth.users(id) on delete cascade default auth.uid(),
   match_id uuid not null references public.matches(id) on delete cascade,
   scorer_id text not null references public.players(id) on delete cascade,
   assist_id text references public.players(id) on delete set null,
@@ -44,14 +49,38 @@ create table if not exists public.player_stats (
   updated_at timestamptz not null default now()
 );
 
+alter table public.players add column if not exists user_id uuid references auth.users(id) on delete cascade default auth.uid();
+alter table public.matches add column if not exists user_id uuid references auth.users(id) on delete cascade default auth.uid();
+alter table public.matches add column if not exists team_a_score integer not null default 0;
+alter table public.matches add column if not exists team_b_score integer not null default 0;
+alter table public.goals add column if not exists user_id uuid references auth.users(id) on delete cascade default auth.uid();
 alter table public.players enable row level security;
 alter table public.matches enable row level security;
 alter table public.match_players enable row level security;
 alter table public.goals enable row level security;
 alter table public.player_stats enable row level security;
 
-create policy "Public player access" on public.players for all using (true) with check (true);
-create policy "Public match access" on public.matches for all using (true) with check (true);
-create policy "Public match player access" on public.match_players for all using (true) with check (true);
-create policy "Public goal access" on public.goals for all using (true) with check (true);
-create policy "Public player stats access" on public.player_stats for all using (true) with check (true);
+alter table public.match_players add column if not exists user_id uuid references auth.users(id) on delete cascade default auth.uid();
+alter table public.player_stats add column if not exists user_id uuid references auth.users(id) on delete cascade default auth.uid();
+
+drop policy if exists "Public player access" on public.players;
+drop policy if exists "Public match access" on public.matches;
+drop policy if exists "Public match player access" on public.match_players;
+drop policy if exists "Public goal access" on public.goals;
+drop policy if exists "Public player stats access" on public.player_stats;
+drop policy if exists "Users manage their players" on public.players;
+drop policy if exists "Users manage their matches" on public.matches;
+drop policy if exists "Users manage their match players" on public.match_players;
+drop policy if exists "Users manage their goals" on public.goals;
+drop policy if exists "Users manage their player stats" on public.player_stats;
+
+create policy "Users manage their players" on public.players for all
+  using (auth.uid() = user_id) with check (auth.uid() = user_id);
+create policy "Users manage their matches" on public.matches for all
+  using (auth.uid() = user_id) with check (auth.uid() = user_id);
+create policy "Users manage their match players" on public.match_players for all
+  using (auth.uid() = user_id) with check (auth.uid() = user_id);
+create policy "Users manage their goals" on public.goals for all
+  using (auth.uid() = user_id) with check (auth.uid() = user_id);
+create policy "Users manage their player stats" on public.player_stats for all
+  using (auth.uid() = user_id) with check (auth.uid() = user_id);

@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
+import { User } from '@supabase/supabase-js';
 import {
   ActiveTab,
   Player,
@@ -18,7 +19,18 @@ import {
   saveStoredDivisionResult,
 } from './utils/storage';
 import { formatTeamsForWhatsApp } from './utils/whatsappFormatter';
-import { deleteRemotePlayer, loadRemotePlayers, supabase, upsertRemotePlayers } from './lib/supabase';
+import {
+  deleteRemotePlayer,
+  loadMatchStats,
+  loadRemotePlayers,
+  MatchGoalInput,
+  recordMatch,
+  signInWithGoogle,
+  signOut,
+  supabase,
+  upsertRemotePlayers,
+} from './lib/supabase';
+import { MatchStats } from './types';
 import confetti from 'canvas-confetti';
 
 import { Header } from './components/Header';
@@ -30,6 +42,7 @@ import { PitchView } from './components/PitchView';
 import { TeamCard } from './components/TeamCard';
 import { ShareModal } from './components/ShareModal';
 import { KeyboardShortcutsModal } from './components/KeyboardShortcutsModal';
+import { MatchRecorderModal } from './components/MatchRecorderModal';
 
 export default function App() {
   const [activeTab, setActiveTab] = useState<ActiveTab>('home');
@@ -90,26 +103,50 @@ export default function App() {
   const [isBulkModalOpen, setIsBulkModalOpen] = useState(false);
   const [isShareModalOpen, setIsShareModalOpen] = useState(false);
   const [isShortcutsModalOpen, setIsShortcutsModalOpen] = useState(false);
+  const [isMatchRecorderOpen, setIsMatchRecorderOpen] = useState(false);
+  const [user, setUser] = useState<User | null>(null);
+  const [authError, setAuthError] = useState('');
+  const [matchStats, setMatchStats] = useState<MatchStats>({ matches: 0, goals: 0, assists: 0, topScorer: null });
 
   useEffect(() => {
     if (!supabase) return;
 
     let cancelled = false;
-    loadRemotePlayers().then((remotePlayers) => {
-      if (!cancelled && remotePlayers.length > 0) {
-        setPlayers(remotePlayers);
+    supabase.auth.getSession().then(({ data }) => {
+      if (cancelled) return;
+      setUser(data.session?.user ?? null);
+      if (data.session?.user) {
+        void loadRemotePlayers(data.session.user.id).then((remotePlayers) => {
+          if (!cancelled && remotePlayers.length > 0) setPlayers(remotePlayers);
+        });
+        void loadMatchStats(data.session.user.id).then((stats) => {
+          if (!cancelled) setMatchStats(stats);
+        });
+      }
+    });
+
+    const { data: listener } = supabase.auth.onAuthStateChange((_event, session) => {
+      setUser(session?.user ?? null);
+      if (session?.user) {
+        void loadRemotePlayers(session.user.id).then((remotePlayers) => {
+          if (!cancelled && remotePlayers.length > 0) setPlayers(remotePlayers);
+        });
+        void loadMatchStats(session.user.id).then(setMatchStats);
+      } else {
+        setMatchStats({ matches: 0, goals: 0, assists: 0, topScorer: null });
       }
     });
 
     return () => {
       cancelled = true;
+      listener.subscription.unsubscribe();
     };
   }, []);
 
   useEffect(() => {
     saveStoredPlayers(players);
-    void upsertRemotePlayers(players);
-  }, [players]);
+    if (user) void upsertRemotePlayers(players, user.id);
+  }, [players, user]);
 
   useEffect(() => {
     saveStoredFormationId(selectedFormation.id);
@@ -201,7 +238,37 @@ export default function App() {
   // Delete single player
   const handleDeletePlayer = (id: string) => {
     setPlayers((prev) => prev.filter((p) => p.id !== id));
-    void deleteRemotePlayer(id);
+    if (user) void deleteRemotePlayer(id, user.id);
+  };
+
+  const handleRecordMatch = async (
+    teamAScore: number,
+    teamBScore: number,
+    goals: MatchGoalInput[],
+    playedAt: string,
+    notes: string,
+  ) => {
+    if (!user) throw new Error('Sign in with Google before recording a match.');
+    await recordMatch(user.id, teamAScore, teamBScore, goals, playedAt, notes);
+    setMatchStats(await loadMatchStats(user.id));
+  };
+
+  const handleSignIn = async () => {
+    setAuthError('');
+    try {
+      await signInWithGoogle();
+    } catch (error) {
+      setAuthError(error instanceof Error ? error.message : 'Google sign-in failed.');
+    }
+  };
+
+  const handleSignOut = async () => {
+    setAuthError('');
+    try {
+      await signOut();
+    } catch (error) {
+      setAuthError(error instanceof Error ? error.message : 'Sign out failed.');
+    }
   };
 
   // Clear all players
@@ -296,7 +363,17 @@ export default function App() {
         divisionResult={divisionResult}
         onGenerate={handleGenerateTeams}
         onOpenShortcuts={() => setIsShortcutsModalOpen(true)}
+        user={user}
+        authConfigured={Boolean(supabase)}
+        onSignIn={() => void handleSignIn()}
+        onSignOut={() => void handleSignOut()}
       />
+
+      {authError && (
+        <div className="mx-auto mt-4 w-full max-w-7xl border-3 border-black bg-[#FF5F56] px-4 py-3 text-xs font-black">
+          {authError}
+        </div>
+      )}
 
       {/* Main Tab Content */}
       <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6">
@@ -305,6 +382,9 @@ export default function App() {
             players={players}
             setActiveTab={setActiveTab}
             onGenerate={handleGenerateTeams}
+            stats={matchStats}
+            onRecordMatch={() => setIsMatchRecorderOpen(true)}
+            canRecordMatch={Boolean(user)}
             hasResult={Boolean(divisionResult)}
           />
         )}
@@ -405,6 +485,13 @@ export default function App() {
       <KeyboardShortcutsModal
         isOpen={isShortcutsModalOpen}
         onClose={() => setIsShortcutsModalOpen(false)}
+      />
+
+      <MatchRecorderModal
+        isOpen={isMatchRecorderOpen}
+        players={players}
+        onClose={() => setIsMatchRecorderOpen(false)}
+        onSave={handleRecordMatch}
       />
     </div>
   );

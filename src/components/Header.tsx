@@ -5,7 +5,10 @@ import {
   LayoutGrid,
   Shirt,
   Trophy,
+  LogIn,
+  LogOut,
 } from 'lucide-react';
+import { User } from '@supabase/supabase-js';
 
 interface HeaderProps {
   activeTab: ActiveTab;
@@ -15,6 +18,10 @@ interface HeaderProps {
   divisionResult?: DivisionResult | null;
   onGenerate: () => void;
   onOpenShortcuts?: () => void;
+  user: User | null;
+  authConfigured: boolean;
+  onSignIn: () => void;
+  onSignOut: () => void;
 }
 
 export const Header: React.FC<HeaderProps> = ({
@@ -24,6 +31,10 @@ export const Header: React.FC<HeaderProps> = ({
   hasResult,
   divisionResult,
   onGenerate,
+  user,
+  authConfigured,
+  onSignIn,
+  onSignOut,
 }) => {
   const tabs: { id: ActiveTab; label: string; icon: React.ReactNode; badge?: number }[] = [
     { id: 'home', label: 'HOME', icon: <Trophy className="w-4 h-4" /> },
@@ -79,6 +90,26 @@ export const Header: React.FC<HeaderProps> = ({
 
           {/* Right Header Actions */}
           <div className="flex items-center gap-2 sm:gap-3">
+            {user ? (
+              <button
+                onClick={onSignOut}
+                className="flex items-center gap-2 px-3 py-2 bg-white text-black font-black text-xs border-2 border-black cursor-pointer"
+                title="Sign out"
+              >
+                <LogOut className="w-4 h-4" />
+                <span className="hidden md:inline max-w-24 truncate">{user.user_metadata?.full_name ?? 'ACCOUNT'}</span>
+              </button>
+            ) : (
+              <button
+                onClick={onSignIn}
+                disabled={!authConfigured}
+                className="flex items-center gap-2 px-3 py-2 bg-white text-black font-black text-xs border-2 border-black cursor-pointer disabled:cursor-not-allowed disabled:opacity-50"
+                title={authConfigured ? 'Sign in with Google' : 'Configure Supabase to enable sign in'}
+              >
+                <LogIn className="w-4 h-4" />
+                <span className="hidden md:inline">GOOGLE SIGN IN</span>
+              </button>
+            )}
             <button
               onClick={onGenerate}
               disabled={playerCount < 2}

@@ -83,6 +83,13 @@ export interface DivisionResult {
 
 export type ActiveTab = 'home' | 'players' | 'teams' | 'pitch';
 
+export interface MatchStats {
+  matches: number;
+  goals: number;
+  assists: number;
+  topScorer: { name: string; goals: number } | null;
+}
+
 export interface KitStyle {
   primaryColor: string;
   stripeColor: string;

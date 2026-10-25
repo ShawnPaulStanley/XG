@@ -1,5 +1,5 @@
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
-import { Player, PositionKey } from '../types';
+import { MatchStats, Player, PositionKey } from '../types';
 
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
 const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
@@ -15,6 +15,7 @@ interface PlayerRow {
   notes: string | null;
   is_attending: boolean;
   created_at: number;
+  user_id: string;
 }
 
 function toPlayer(row: PlayerRow): Player {
@@ -29,7 +30,7 @@ function toPlayer(row: PlayerRow): Player {
   };
 }
 
-function toRow(player: Player): PlayerRow {
+function toRow(player: Player, userId: string): PlayerRow {
   return {
     id: player.id,
     name: player.name,
@@ -38,15 +39,33 @@ function toRow(player: Player): PlayerRow {
     notes: player.notes ?? null,
     is_attending: player.isAttending !== false,
     created_at: player.createdAt,
+    user_id: userId,
   };
 }
 
-export async function loadRemotePlayers(): Promise<Player[]> {
+export async function signInWithGoogle(): Promise<void> {
+  if (!supabase) throw new Error('Supabase is not configured.');
+
+  const { error } = await supabase.auth.signInWithOAuth({
+    provider: 'google',
+    options: { redirectTo: window.location.origin },
+  });
+  if (error) throw error;
+}
+
+export async function signOut(): Promise<void> {
+  if (!supabase) return;
+  const { error } = await supabase.auth.signOut();
+  if (error) throw error;
+}
+
+export async function loadRemotePlayers(userId: string): Promise<Player[]> {
   if (!supabase) return [];
 
   const { data, error } = await supabase
     .from('players')
     .select('id, name, preferred_positions, kit_number, notes, is_attending, created_at')
+    .eq('user_id', userId)
     .order('created_at', { ascending: true });
 
   if (error) {
@@ -57,20 +76,93 @@ export async function loadRemotePlayers(): Promise<Player[]> {
   return (data as PlayerRow[]).map(toPlayer);
 }
 
-export async function upsertRemotePlayers(players: Player[]): Promise<void> {
+export async function upsertRemotePlayers(players: Player[], userId: string): Promise<void> {
   if (!supabase || players.length === 0) return;
 
-  const { error } = await supabase.from('players').upsert(players.map(toRow));
+  const { error } = await supabase.from('players').upsert(players.map((player) => toRow(player, userId)));
   if (error) {
     console.error('Failed to save players to Supabase', error);
   }
 }
 
-export async function deleteRemotePlayer(id: string): Promise<void> {
+export async function deleteRemotePlayer(id: string, userId: string): Promise<void> {
   if (!supabase) return;
 
-  const { error } = await supabase.from('players').delete().eq('id', id);
+  const { error } = await supabase.from('players').delete().eq('id', id).eq('user_id', userId);
   if (error) {
     console.error('Failed to delete player from Supabase', error);
+  }
+}
+
+export async function loadMatchStats(userId: string): Promise<MatchStats> {
+    if (!supabase) return { matches: 0, goals: 0, assists: 0, topScorer: null };
+
+    const [{ count: matches, error: matchesError }, { data: goals, error: goalsError }] = await Promise.all([
+      supabase.from('matches').select('id', { count: 'exact', head: true }).eq('user_id', userId),
+      supabase
+        .from('goals')
+        .select('scorer_id, assist_id, players!goals_scorer_id_fkey(name)')
+        .eq('user_id', userId),
+    ]);
+
+    if (matchesError || goalsError) {
+      console.error('Failed to load match stats from Supabase', matchesError || goalsError);
+      return { matches: 0, goals: 0, assists: 0, topScorer: null };
+    }
+
+    const scorerCounts = new Map<string, { name: string; goals: number }>();
+    let assists = 0;
+    (goals ?? []).forEach((goal) => {
+      const player = Array.isArray(goal.players) ? goal.players[0] : goal.players;
+      const current = scorerCounts.get(goal.scorer_id) ?? { name: player?.name ?? 'Unknown', goals: 0 };
+      scorerCounts.set(goal.scorer_id, { ...current, goals: current.goals + 1 });
+      if (goal.assist_id) assists += 1;
+    });
+
+    const topScorer = [...scorerCounts.values()].sort((a, b) => b.goals - a.goals)[0] ?? null;
+    return { matches: matches ?? 0, goals: goals?.length ?? 0, assists, topScorer };
+}
+
+export interface MatchGoalInput {
+  scorerId: string;
+  assistId: string | null;
+  minute: number | null;
+}
+
+export async function recordMatch(
+    userId: string,
+    teamAScore: number,
+    teamBScore: number,
+    goals: MatchGoalInput[],
+    playedAt: string,
+    notes: string,
+  ): Promise<void> {
+    if (!supabase) throw new Error('Supabase is not configured.');
+
+    const { data: match, error: matchError } = await supabase
+      .from('matches')
+      .insert({
+        user_id: userId,
+        team_a_score: teamAScore,
+        team_b_score: teamBScore,
+        played_at: playedAt,
+        notes: notes || null,
+      })
+      .select('id')
+      .single();
+
+    if (matchError || !match) throw matchError ?? new Error('Supabase did not return the recorded match.');
+
+    if (goals.length > 0) {
+      const { error } = await supabase.from('goals').insert(
+        goals.map((goal) => ({
+          user_id: userId,
+          match_id: match.id,
+          scorer_id: goal.scorerId,
+          assist_id: goal.assistId,
+          minute: goal.minute,
+        })),
+      );
+      if (error) throw error;
   }
 }
